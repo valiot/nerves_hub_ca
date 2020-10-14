@@ -22,5 +22,6 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 nerves_hub_ca-*.tar
 /test/tmp
+/ssl
 /etc
 .env
