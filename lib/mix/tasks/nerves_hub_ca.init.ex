@@ -5,7 +5,8 @@ defmodule Mix.Tasks.NervesHubCa.Init do
 
   @switches [
     path: :string,
-    host: :string
+    host: :string,
+    client: :string
   ]
 
   def run(args) do
@@ -13,7 +14,8 @@ defmodule Mix.Tasks.NervesHubCa.Init do
 
     path = opts[:path] || Application.get_env(:nerves_hub_ca, :working_dir) || @path
     #host = opts[:host] || "nerves-hub.org"
-    host = opts[:host] || "nerves-hub-test.valiot.app"
+    host = opts[:host] || "nerves-hub.valiot.app"
+    client = opts[:client] || "test"
     File.mkdir_p(path)
 
     # Generate Self-Signed Root
@@ -40,25 +42,25 @@ defmodule Mix.Tasks.NervesHubCa.Init do
     write_certs(server_root_ca, server_root_ca_key, "server-root-ca", path)
 
     {ca_server, ca_server_key} =
-      gen_server_cert(server_root_ca, server_root_ca_key, "ca.#{host}", [
-        "ca.#{host}"
+      gen_server_cert(server_root_ca, server_root_ca_key, "nerves-hub-ca.default.svc.cluster.local", [
+        "nerves-hub-ca.default.svc.cluster.local"
       ])
-    
-    write_certs(ca_server, ca_server_key, "ca.#{host}", path)
+
+    write_certs(ca_server, ca_server_key, "nerves-hub-ca.default.svc.cluster.local", path)
 
     {api_server, api_server_key} =
-      gen_server_cert(server_root_ca, server_root_ca_key, "api.#{host}", [
-        "api.#{host}"
+      gen_server_cert(server_root_ca, server_root_ca_key, "#{client}-api.#{host}", [
+        "#{client}-api.#{host}"
       ])
 
-    write_certs(api_server, api_server_key, "api.#{host}", path)
+    write_certs(api_server, api_server_key, "#{client}-api.#{host}", path)
 
     {device_server, device_server_key} =
-      gen_server_cert(server_root_ca, server_root_ca_key, "device.#{host}", [
-        "device.#{host}"
-      ])    
+      gen_server_cert(server_root_ca, server_root_ca_key, "#{client}-device.#{host}", [
+        "#{client}-device.#{host}"
+      ])
 
-    write_certs(device_server, device_server_key, "device.#{host}", path)
+    write_certs(device_server, device_server_key, "#{client}-device.#{host}", path)
 
     ca_bundle_path = Path.join(path, "ca.pem")
 
@@ -85,10 +87,10 @@ defmodule Mix.Tasks.NervesHubCa.Init do
 
     template = X509.Certificate.Template.new(:root_ca, opts)
     ca_key = X509.PrivateKey.new_ec(CertificateTemplate.ec_named_curve())
-    subject_rdn = 
-      CertificateTemplate.subject_rdn() 
+    subject_rdn =
+      CertificateTemplate.subject_rdn()
       |> Path.join("OU=" <> "NervesHub Certificate Authority")
-      |> Path.join("CN=" <> common_name) 
+      |> Path.join("CN=" <> common_name)
     ca = X509.Certificate.self_signed(ca_key, subject_rdn, template: template)
     {ca, ca_key}
   end
@@ -119,15 +121,15 @@ defmodule Mix.Tasks.NervesHubCa.Init do
 
     X509.Certificate.Template.new(:server, opts)
     |> gen_ser_cert(issuer, issuer_key, common_name)
-  end  
+  end
 
   defp gen_cert(template, issuer, issuer_key, common_name) do
     private_key = X509.PrivateKey.new_ec(CertificateTemplate.ec_named_curve())
     public_key = X509.PublicKey.derive(private_key)
-    subject_rdn = 
-      CertificateTemplate.subject_rdn() 
+    subject_rdn =
+      CertificateTemplate.subject_rdn()
       |> Path.join("OU=" <> "NervesHub Certificate Authority")
-      |> Path.join("CN=" <> common_name) 
+      |> Path.join("CN=" <> common_name)
     ca = X509.Certificate.new(public_key, subject_rdn, issuer, issuer_key, template: template)
     {ca, private_key}
   end
